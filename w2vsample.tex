@@ -1,0 +1,199 @@
+\documentclass{article}
+
+\usepackage{graphicx,tikz}
+\usepackage{fullpage}
+\usepackage{amsthm}
+\usepackage{amssymb}
+\usepackage{amsmath}
+\usepackage{algorithm}
+\usepackage{algorithmicx}
+\usepackage{algpseudocode}
+\usepackage{booktabs}
+\usepackage{color}
+
+%\renewcommand{\baselinestretch}{0.95}
+%\setlength{\textfloatsep}{0.1cm}
+%\setlength{\abovecaptionskip}{0.1cm}
+
+\begin{document}
+
+\title{\Large\bf Finding Relevant Documents by Sampling over Word2vec Embeddings}
+\author{Shiyu Ji\\ shiyu@cs.ucsb.edu}
+\date{}
+\maketitle
+
+\newtheorem{definition}{Definition}
+\theoremstyle{definition}
+\newtheorem{theorem}{Theorem}
+\theoremstyle{plain}
+\newtheorem{lemma}{Lemma}
+\theoremstyle{plain}
+\newtheorem{corollary}{Corollary}
+\theoremstyle{plain}
+
+\begin{abstract}
+All-pairs similarity search (APSS) has extensive applications in many fields such as collaborative filtering, recommendations, search query suggestions, spam detection, etc.
+This paper proposes an approximation algorithm for APSS over relevant documents. We propose the \emph{averaged cosine similarity} between the word embeddings (e.g., by word2vec) of two documents as a measure of their relevance.
+We give the upper bounds of the approximation errors for the worst case by using Rademacher average.
+We also evaluate our algorithms by experiments on real-world data sets to verify that our upper bounds are tight enough for practical use.
+\end{abstract}
+
+\section{Introduction}
+All-pairs similarity search (APSS) has received extensive research interest recently \cite{BMS07,Xia16,ATY13,TAJY14}. Collaborative filtering \cite{SKK01}, similarity-based recommendations \cite{RV97}, search query suggestions \cite{CJP08}, spam and plagiarism detection \cite{CDG07,LCH06} all find APSS useful in practice. However, it is time consuming to do an APSS since the time complexity grows quadratically with the problem scale \cite{BMS07,ATY13,TAJY14}. To improve performance, many approximation approaches have been proposed \cite{GIM99,FKS03,IM98,Char02,LRU14}. Hence the computation \cite{BMS07,DHM04,Xia16,ATY13,TAJY14} and approximation \cite{LRU14,GIM99,FKS03,IM98,Char02} of the all-pairs similarities have been popular in research for more than ten years.
+
+This paper considers a sampling-based approximation method for relevant document search. Thanks to word2vec \cite{MSC13,MCC13}, we can evaluate the relevance between two words by computing the cosine similarity between their word embedding vectors. To evaluate the relevance between two documents, we propose to use the averaged cosine similarity among the word embeddings, i.e., we choose one word from document $A$ at random, and choose another word from document $B$ at random, and the expected cosine similarity between the chosen word embeddings should represent the relevance between these two documents. We treat the averaged cosine similarity between two documents as a true average over all the pairs of word embeddings, and then we can use sampled average to approximate the true average. We explain the details as follows.
+
+We first define the relevance between two documents $A$ and $B$. Suppose $A$ have $m$ words and $B$ has $n$ words. Denote by $A_i$ the word embedding of the $i$-th word in $A$ and similarily $B_i$ is the $i$-th word in $B$. Then the relevance is defined as
+$$Rel(A,B) = \frac{1}{mn} \sum_{i=1}^m \sum_{j=1}^n A_i\cdot B_j,$$
+where $\cdot$ denotes the dot product between vectors, i.e., $A_i\cdot B_i = A_i^T B_i$. 
+The product $mn$ can be very large. Suppose we want to know the relevance between two long articles, each of which has more than 10K words. Then $mn$ is larger than 100 million. Thus it is time consuming to traverse all the $mn$ pairs of word embeddings and compute the dot products. However, if a precise approximation can also be acceptable, we can approximate the relevance (true average) by using the sampled average
+$$\widetilde{Rel}(A,B) = \frac{1}{|S|} \sum_{(s_i, s_j)\in S} A_{s_i}\cdot B_{s_j},$$
+where $S$ is the set of sampled pairs of word embeddings, e.g., $(s_i, s_j) \in S$ means the $s_i$-th word in document $A$ and the $s_j$-th word in document $B$ are sampled. 
+That is, we can choose $k$ out of $mn$ pairs at random, and compute the average of the $k$ sampled pairs as an approximation of the relevance.
+Thanks to the recent advance in statistical learning theory (especially the results of Rademacher average), there are tight error bounds for this sampling method.
+
+The approximation error of each our algorithm can be upper bounded by using Rademacher average \cite{BM02,Mohri09,BBM05}. We can treat the relevance approximation as a learning problem over large scale data set. In the analysis, we want to upper bound the approximation error for the worst case, i.e., to bound the maximum error $\overline{E}$ among the pairs of our observation:
+$$\overline{E} = \max_{(A,B)\in \mathcal{P}} |\widetilde{Rel}(A,B) - Rel(A,B)|,$$
+where $P$ is the set of all the document pairs that we want to know their relevance values. 
+Rademacher average can be used to bound such maximum error \cite{RU15,RU16}. The key result we use in this paper is that with probability at least $1-\delta$,
+$$\overline{E} \leq \min\left\{\sqrt{\frac{2\log 2p + 2\log(1/\delta)}{k}}, R + \left(1+\sqrt{\frac{2}{k}\log \frac{1}{\delta}} + \sqrt{\frac{2}{k}\log \frac{1}{\delta} + 2R}\right)\sqrt{\frac{2\log \frac{4}{\delta}}{k}}\right\},$$
+where $p=|P|$ (the observation size), $R$ denotes the Rademacher average of the data set, $k$ is the number of samples. 
+It is also possible to upper bound the Rademacher average by the state-of-art results \cite{AGO14,RU15,RU16}. Thus we can find an upper bound of the worst errors for our approximation algorithms.
+
+{\color{black}
+\textbf{Our Contributions}. We are the first to give the approximation algorithms for APSS on relevant documents based on word embeddings that can achieve upper bounds on maximum errors for the worst case, and to show the upper bounds by using Rademacher average. We also evaluate our algorithms by using real-world data sets.
+}
+
+The rest of this paper is organized as follows. Section \ref{sec:rw} discusses the related works. Section \ref{sec:pp} introduces the problem settings and reviews some technical background. Section \ref{sec:acs} approximates the word embedding based document relevance and also gives the analysis on the upper bound of maximum errors. Section \ref{sec:eval} evaluates our algorithms and presents the experimental results. Section \ref{sec:con} concludes this paper and discusses some possible future works.
+
+
+\section{Related Works}
+\label{sec:rw}
+All-pairs similarity search (APSS) is recently a popular research topic in the community of information retrieval \cite{BMS07,Xia16,ATY13,TAJY14}. Given a big set of objects, the goal of APSS is to efficiently compute (or approximate) the similarities between each pair of objects. Many similarity measures have been proposed \cite{SGM00}, e.g., Cosine Similarity \cite{TP07}, SimRank \cite{JW02}, Jaccard Index \cite{HHH89}, Metric Distance \cite{SGM00}, Pearson Correlation \cite{BCY09}, etc. For similarity search, Cosine Similarity and SimRank are very popular (\cite{TP07,Xia16,ATY13,TAJY14} for Cosine, and \cite{LH10,FNS13,KMK14,YM15} for SimRank). A major challenge of APSS is the large volume of computation: given $n$ objects, without any assumption on the similarity distribution (e.g., the similarity matrix is sparse), the time complexity is at least $O(n^2)$. To compute more efficiently, the state-of-art research works often use parallelism \cite{CCK12,HFL10} and dissimilarity detection \cite{CL99,BKP15,LRU14,ATY13,TAJY14}. {\color{black} One popular method to eliminate dissimilar pairs is to hash vectors into buckets by Locality Sensitive Hashing (LSH) \cite{LRU14}, and the candidate pairs are only between the vectors in the same bucket. However, since such methods can introduce non-negligible false positive and false negative \cite{AMT13,TEL11}, further verifications on the candidate pairs (or missing potential pairs) are needed. Partition-based Similarity Search (PSS) uses partitions to cluster the candidate pairs \cite{TAJY14}. Very often some partitions are still large, and hence further approximations on the similarities may be needed to avoid redundant computation.} If only approximations are needed, how to efficiently sample with negligible error for similarity search is another research focus \cite{GIM99,FKS03,IM98,Char02}. This paper focuses on the approximation problem.
+
+We may treat the similarity approximation as a learning problem over large scale data, and we need to upper bound the learning error for the worst case. In statistical learning theory, such upper bounds are usually called risk bounds \cite{Vap13}. There are two classical methods to compute the risk bounds: by Vapnik–Chervonenkis (VC) dimension \cite{VLL94,Vap98,Vap13} and by Rademacher average \cite{Mohri09,BM02,BBM05}. Many approximation algorithms that use these two techniques have been proposed \cite{RK14,RK16,RU15,RU16}. Riondato and Kornaropoulos \cite{RK14,RK16} proposed algorithms that use VC dimension to upper bound the sample size that is sufficient to approximate the betweenness centralities \cite{Bran01} of all nodes in a graph with guaranteed error bounds. One limitation of the VC-based algorithms is that the upper bounds of some characteristic quantities (e.g., the maximum length of any shortest path) are needed \cite{RK14,RK16,RU16}. But such bounds are not always available. One year later, Riondato and Upfal used Rademacher average to approximate the frequent itemsets \cite{RU15} and betweenness centralities \cite{RU16}. They also found that by using Rademacher average, we can avoid the aforementioned limitation of VC-based solutions. It has been proved that Rademacher average can be applied to various approximation problems, which are out of the scope of classical learning framework. This paper basically follows this idea. To the best of our knowledge, there is no research work connecting similarity approximation with Rademacher average. We attempt to fill this void.
+
+\section{Problem Formulation and Preliminaries}
+\label{sec:pp}
+\subsection{Cosine Similarity}
+We consider the cosine similarity based all-pairs similarity search.
+Suppose there are $n$ vectors (each vector can represent a user profile or a web page). Each vector contains $m$ non-negative features. Define the cosine similarity between two vectors $u$ and $v$ as
+$$Sim(u,v) = \frac{1}{||u||\cdot||v||} \sum_{i=1}^m u_i\cdot v_i,$$
+where $u_i$, $v_i$ denotes the $i$-th feature value of $u$, $v$.
+For simplicity, we assume all the vectors are adjusted with the same norm: $||v|| = \sqrt{m}$ for every $v$ in the $n$ vectors. Then the equation above can be simplified as
+$$Sim(u,v) = \frac{1}{m} \sum_{i=1}^m u_i\cdot v_i.$$
+That is, the similarity is defined as the average on the corresponding feature products between the vectors. 
+
+To do the all-pairs similarity search (APSS), we need to compute the similarity between each pair of vectors. In the setting of word embedding, to compute the relevance between two documents: $A$ with $m$ words and $B$ with $n$ words, there are $mn$ pairs of word embedding vectors to compute, and for each pair we need to compute the dot product, the total complexity of a naiive algorithm is $O(mnf)$, where $f$ is the dimension of the word embedding, which is typically from 100 to 1000 \cite{MSC13}. Fortunately, there are many methods to detect dissimilar pairs (two vectors without sharing any feature) \cite{ATY13,TAJY14,Lin09}, which can save a lot of computation. 
+{\color{black} One typical detection method is based on Locality Sensitive Hashing (LSH) \cite{LRU14}. We can construct a LSH such that for two vectors $u$ and $v$, if their cosine similarity is larger than $\cos \theta$, then with probability at least $1-\theta/\pi$ we can hash $u$ and $v$ into one bucket \cite{LRU14}. The vectors in one bucket are likely to be highly similar. Thus the number of vector pairs to be compared is greatly reduced.} 
+For the state-of-art works, to compute all the pairs, the complexity can be lowered to $O(nkm)$, where $k$ is much less than $n$. However, to the best of our knowledge, there were few discussions on the size of features $m$. If we can only consider a part of the $m$ features without significantly deteriorating the accuracy, then the total computation time for APSS can be lowered significantly (note that $nk$ is still large for very big dataset). {\color{black}Moreover, the popular LSH based method can introduce false positive. Note that if we assume the cosine similarity ranges from 0 to 1, then the angle $\theta$ between any two vectors is between 0 and $\pi/2$. Hence even for two totally dissimilar vectors $u\cdot v = 0$, they still have probability at least $1 - (1-0.5^r)^b$ (where $r$ and $b$ are the number of rows and bands that from the LSH signature \cite{LRU14}) to be hashed into one bucket and thus will be falsely believed to be similar. Hence we need further verifications on the candidate pairs. Since there could still be a lot of vectors in one bucket, in practice approximations on the cosine similarities are interesting to research.}
+
+\subsection{Rademacher Average}
+This section will review some key results related to Rademacher Average. 
+Suppose we want to compute the cosine similarities between a fixed vector $u$ and other vectors $v_1$, $v_2$, $\cdots$, $v_n$. We take the $m$ features as the sample space $S$:
+$$S = \{s_1, \cdots, s_k\} \subseteq D$$
+where $k$ is the number of samples we take, and $D$ is the feature space: $D = \{1,2,\cdots,m\}$.
+Let $F$ be a collection of functions from the features $D$ to the interval $[0, m]$.
+For each function $f\in F$, define the \emph{true average} $A_D(f)$ and \emph{sampled average} $A_S(f)$ as follows:
+$$A_D(f) = \frac{1}{m} \sum_{i=1}^m f(i),\quad A_S(f) = \frac{1}{k} \sum_{i=1}^k f(s_i).$$
+Define the \emph{uniform deviation} \cite{Oneto13} of $F$ given $S$ as
+$$U_S(F) = \sup_{f\in F} [ A_S(f) - A_D(f) ].$$
+Note that if $F$ is a finite set (in this paper we will see this is true), supreme can be replaced by maximum:
+$$U_S(F) = \max_{f\in F} [ A_S(f) - A_D(f) ].$$
+For the case when $F$ is finite, we have the upper bound of the approximation error in the worst case as follows.
+\begin{theorem}
+\label{thm:finite}
+If $F$ is finite, then for any $\delta > 0$, with probability at least $1-\delta$,
+$$\sup_{f\in F} | A_S(f) - A_D(f) | \leq \sqrt{\frac{2\log(2|F|) + 2\log(1/\delta)}{k}}.$$ 
+\end{theorem}
+We leave the proof of Theorem \ref{thm:finite} to the Appendix.
+
+However if $F$ is not necessarily infinite, the above bound cannot apply. We can use Rademacher average to deal with the general case. 
+Define the \emph{Rademacher average} \cite{Mohri09,BM02,Oneto13} of $F$ given $S$ as
+\newcommand{\E}{\mathbb{E}}
+$$R_S(F) = \E_\sigma \left[\sup_{f\in F} \frac{2}{k}\sum_{i=1}^k \sigma_i f(s_i) \right],$$
+where each $\sigma_i$ is a random variable uniformly distributed over $\{-1, 1\}$, and the mean $\E_\sigma$ takes randomness over all the $\sigma_i$'s conditionally on $S$. Again, one can replace supreme by maximum if $F$ is finite.
+
+The main motivation of our algorithm is that the difference between true average and sampled average is upper bounded by the Rademacher average as follows.
+We leave the proofs to the Appendix.
+
+\begin{theorem}
+\label{thm:main}
+Let $F$ be a collection of functions $f$ mapping $D$ to $[-1,1]$. 
+With probability at least $1-\delta$, we have
+$$\sup_{f\in F}|A_S(f) - A_D(f)| \leq R_S(F) + \left(1+\sqrt{\frac{2}{k}\log \frac{1}{\delta}} + \sqrt{\frac{2}{k}\log \frac{1}{\delta} + 2R_S(F)}\right)\sqrt{\frac{2\log \frac{8}{\delta}}{k}}.$$
+\end{theorem}
+
+The remaining item we need to upper bound is $R_S(F)$. Our result is similar to Massart's lemma \cite{AGO14}.
+
+\begin{theorem}
+\label{thm2}
+$$R_S(F) \leq \frac{\ell}{k}\sqrt{8\log |F|},$$
+where $\ell^2 = \sup_{f\in F}\sum_{i=1}^k f(s_i)^2$.
+\end{theorem}
+
+By the above two theorems, we can bound our approximation error even for the worst case.
+
+
+\section{Approximating Document Relevance}
+\label{sec:acs}
+This section proposes our approximation algorithm and its analysis.
+{\color{black}
+The approximation algorithm takes as input a collection of word embedding vectors $V$, each of which is associated with one word, and a collection of $p$ candidate document pairs $P$, and two parameters $(\epsilon, \delta)$ whose values are between 0 and 1. The candidate pairs $P$ can be given by a dissimilarity detection algorithm, e.g., LSH based method \cite{LRU14}, Feature Scoring \cite{CL99}, Diamond Sampling \cite{BKP15}. The algorithm outputs a set $C = \{\tilde{S}(u,v): (u,v)\in P\}$, where $\tilde{S}(u,v)$ is the $(\epsilon, \delta)$- approximation of relevance between $u$ and $v$, i.e., with probability at least $1-\delta$, the worst approximation error in $C$ is at most $\epsilon$. Each vector in $V$ contains some features. Suppose we have $mn$ of word embedding pairs. We take these $mn$ vector pairs as the total space $D = \{(1,1),(1,2),\cdots,(m,n)\}$. For each pair $s=(i,j)\in D$, let $f_{u,v}(s) = u_i\cdot v_j$, where $u_i$ is the embedding vector of the $i$-th word of the document $u$. Let $F = \{f_{u,v}: (u,v)\in P\}$. Thus $|F| = p$. It is clear that the true average of each $f_{u,v}$ equals to the document relevance between $u$ and $v$. Given the sampled features of size $k$, the upper bound of $R_S(F)$ is 
+$$R_S(F) \leq \frac{\ell}{k}\sqrt{8\log p},$$
+where $\ell = \sqrt{\max_{f\in F} \sum_{i=1}^k f(s_i)^2}$. Since $F$ is finite, we can replace supreme by maximum. 
+}
+
+\subsection{The Algorithm}
+The approximation algorithm works in an iterative mode. For each iteration, we sample some new vector pairs $s_i$'s among $D$ and aggregate the feature products given by $f_{u,v}(s_i)$ for each $f_{u,v}$ in $F$. Then we compute the error upper bound:
+$$\Delta = \min\left\{\sqrt{\frac{2\log 2p + 2\log(1/\delta)}{k}}, \frac{\ell\sqrt{8\log p}}{k} +\left(1+\sqrt{\frac{2}{k}\log \frac{1}{\delta}} + \sqrt{\frac{2}{k}\log \frac{1}{\delta} + \frac{4\ell\sqrt{2\log p}}{k}}\right)\sqrt{\frac{2\log \frac{8}{\delta}}{k}}\right\},$$
+where $\ell = \sqrt{\max_{f\in F} \sum_{i=1}^k f(s_i)^2}$, and $k$ is the number of aggregated samples. 
+If $\Delta \leq \epsilon$, then we stop and return the average $\frac{1}{k}\sum_{s_i\in S}f_{u,v}(s_i)$ for each pair $u, v$. Otherwise, we continue to the next round, where we will sample more features. If $\Delta \leq \epsilon$ can never be satisfied, we will sample at most $m^2$ vector pairs, where $m$ is the maximum number of words in any document in the dataset. Algorithm \ref{alg:csa} gives the pseudocode of our solution. We use progressive approximation, i.e., for each round, the next sample size $k'$ is larger than the previous size $k$. The algorithm stops once the upper bound $\epsilon$ can be achieved. 
+
+It is clear to verify the correctness of our algorithm by Theorem \ref{thm:finite}, Theorem \ref{thm:main} and Theorem \ref{thm2}.
+
+\begin{algorithm}[!t]
+\caption{\textsf{Document Relevance Approximation}}
+\label{alg:csa}
+\renewcommand{\algorithmicrequire}{\textbf{Input:}}
+\renewcommand{\algorithmicensure}{\textbf{Output:}}
+\begin{algorithmic}
+\Require{collection of documents $D$; word embedding vectors $V$; candidate document pairs $P$ ($|P| = p$); maximum number of words in any document $m$; $\epsilon \in (0,1)$; $\delta \in (0,1)$.}
+\Ensure{$\widetilde{S}(u,v)$ for each $(u, v) \in P$.}
+\State $k \gets 0$; $S \gets \emptyset$;
+\State For each $i,j \in D$, let $S(i,j) = 0$;
+\While {$k < m^2$}
+	\State $k' \gets \textsf{next-sample-size}(k)$;
+	\For {$i$ from $k$ to $k'-1$}
+	  \For {each $(u, v) \in P$}
+		  \State Uniformly sample a vector $u_s$ from the embedding vectors of $u$;
+			\State Uniformly sample a vector $v_s$ from the embedding vectors of $v$;
+			\State $S(u,v) \gets S(u,v)+u_s\cdot v_s$;
+		\EndFor
+	\EndFor
+	\State $k \gets k'$;
+	\State $\Delta \gets \min\left\{\sqrt{\frac{2\log 2p + 2\log(1/\delta)}{k}}, \frac{\ell\sqrt{8\log p}}{k} +\left(1+\sqrt{\frac{2}{k}\log \frac{1}{\delta}} + \sqrt{\frac{2}{k}\log \frac{1}{\delta} + \frac{4\ell\sqrt{2\log p}}{k}}\right)\sqrt{\frac{2\log \frac{8}{\delta}}{k}}\right\}$;
+	\If {$\Delta \leq \epsilon$}
+		\State break the {\bf while} loop;
+	\EndIf
+\EndWhile
+\State $\mathsf{S} \gets \{S(u,v)/k : u,v\in V, (u,v)\in P\}$.
+\State {\bf return} $\mathsf{S}$.
+\end{algorithmic}
+\end{algorithm}
+
+\section{Evaluation}
+\label{sec:eval}
+
+
+\section{Conclusion}
+\label{sec:con}
+
+
+%\bibliographystyle{./IEEEtran}
+\bibliographystyle{plain}
+\bibliography{./cos}
+
+\section{Appendix}
+\input{appendix.tex}
+\end{document}
