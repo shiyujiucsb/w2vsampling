@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.14159265-2.6-1.40.17 (MiKTeX 2.9) (preloaded format=latex 2016.9.6)  6 DEC 2016 00:14
+This is pdfTeX, Version 3.14159265-2.6-1.40.17 (MiKTeX 2.9) (preloaded format=latex 2016.9.6)  12 DEC 2016 23:53
 entering extended mode
 **./w2vsample.tex
 (w2vsample.tex
@@ -469,19 +469,19 @@ File: umsb.fd 2013/01/14 v3.01 AMS symbols B
 \c@corollary=\count135
  [1
 
-]
+] [2]
 Missing character: There is no â in font cmr10!
 Missing character: There is no € in font cmr10!
 Missing character: There is no “ in font cmr10!
- [2] [3] [4] (w2vsample.bbl [5] [6] [7] [8])
-(appendix.tex [9] [10] [11] [12] [13]) [14] (w2vsample.aux) ) 
+ [3] [4] [5] (w2vsample.bbl [6] [7] [8])
+(appendix.tex [9] [10] [11] [12] [13] [14]) [15] (w2vsample.aux) ) 
 Here is how much of TeX's memory you used:
- 12163 strings out of 493335
- 238806 string characters out of 3136699
- 286072 words of memory out of 3000000
- 15463 multiletter control sequences out of 15000+200000
+ 12170 strings out of 493335
+ 238900 string characters out of 3136699
+ 289078 words of memory out of 3000000
+ 15470 multiletter control sequences out of 15000+200000
  13706 words of font info for 52 fonts, out of 3000000 for 9000
  1141 hyphenation exceptions out of 8191
- 55i,10n,54p,1946b,314s stack positions out of 5000i,500n,10000p,200000b,50000s
+ 55i,10n,54p,1946b,324s stack positions out of 5000i,500n,10000p,200000b,50000s
 
-Output written on w2vsample.dvi (14 pages, 77336 bytes).
+Output written on w2vsample.dvi (15 pages, 80172 bytes).

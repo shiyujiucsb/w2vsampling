@@ -17,7 +17,7 @@
 
 \begin{document}
 
-\title{\Large\bf Finding Relevant Documents by Sampling over Word2vec Embeddings}
+\title{\Large\bf Context-Conscious Relevant Document Clustering Based on Word2vec Embeddings}
 \author{Shiyu Ji\\ shiyu@cs.ucsb.edu}
 \date{}
 \maketitle
@@ -43,13 +43,13 @@ All-pairs similarity search (APSS) has received extensive research interest rece
 
 This paper considers a sampling-based approximation method for relevant document search. Thanks to word2vec \cite{MSC13,MCC13}, we can evaluate the relevance between two words by computing the cosine similarity between their word embedding vectors. To evaluate the relevance between two documents, we propose to use the averaged cosine similarity among the word embeddings, i.e., we choose one word from document $A$ at random, and choose another word from document $B$ at random, and the expected cosine similarity between the chosen word embeddings should represent the relevance between these two documents. We treat the averaged cosine similarity between two documents as a true average over all the pairs of word embeddings, and then we can use sampled average to approximate the true average. We explain the details as follows.
 
-We first define the relevance between two documents $A$ and $B$. Suppose $A$ have $m$ words and $B$ has $n$ words. Denote by $A_i$ the word embedding of the $i$-th word in $A$ and similarily $B_i$ is the $i$-th word in $B$. Then the relevance is defined as
-$$Rel(A,B) = \frac{1}{mn} \sum_{i=1}^m \sum_{j=1}^n A_i\cdot B_j,$$
-where $\cdot$ denotes the dot product between vectors, i.e., $A_i\cdot B_i = A_i^T B_i$. 
-The product $mn$ can be very large. Suppose we want to know the relevance between two long articles, each of which has more than 10K words. Then $mn$ is larger than 100 million. Thus it is time consuming to traverse all the $mn$ pairs of word embeddings and compute the dot products. However, if a precise approximation can also be acceptable, we can approximate the relevance (true average) by using the sampled average
-$$\widetilde{Rel}(A,B) = \frac{1}{|S|} \sum_{(s_i, s_j)\in S} A_{s_i}\cdot B_{s_j},$$
-where $S$ is the set of sampled pairs of word embeddings, e.g., $(s_i, s_j) \in S$ means the $s_i$-th word in document $A$ and the $s_j$-th word in document $B$ are sampled. 
-That is, we can choose $k$ out of $mn$ pairs at random, and compute the average of the $k$ sampled pairs as an approximation of the relevance.
+We first define the relevance between two documents $A$ and $B$. After necessary preprocessing, we have the non-stop words of the documents and keep them in their original order. Suppose $A$ have $m$ non-stop words and $B$ has $n$ ones. Denote by $A_i$ the word embedding of the $i$-th word in $A$ and similarly $B_i$ is the $i$-th word in $B$. Differently from existing works (e.g., \cite{KSK15}), we also consider the influence of context and shingling. Define $k$-shingles as the set of all $k$ consecutive non-stop words in the document. Let $Sh_k^A$ be the set of $k$-shingles in document $A$, while $Sh_k^B$ is for $B$. Then the relevance between documents is defined as
+$$Rel(A,B) = \frac{1}{\sum_{k=1}^K|Sh_k^A|+|Sh_k^B|} \sum_{k=1}^K \left(\sum_{i\in Sh_k^A} \max_{t\in Sh_k^B} Sim(i, t) + \sum_{j\in Sh_k^B} \max_{t\in Sh_k^A} Sim(t, j)\right),$$
+where $K$ is the size of the largest shingle we want to consider, and $Sim(i, j)$ is the similarity between shingle $i$ in document $A$ and shingle $j$ in document $B$. To define $Sim(i, j)$, we first bipartite match the word embeddings in the shingles $i$ and $j$ such that the matched embeddings are as similar as possible. Then we define $Sim(i, j)$ as the averaged cosine similarity of all the matched pairs. This essentially borrows the idea of Word Mover's Distance \cite{KSK15}.
+The number of shingles can be very large. For example, if two documents each have 10K non-stop words and we consider shingles with sizes up to 100, then there are about 2M shingles to be considered. For each shingle, we need to bipartite match it with each of the same sized shingle in the other document and select the most matched one to compute the averaged cosine similarity. Thus it is time consuming to traverse all the possible shingles and compute the relevance as defined above. However, if a precise enough approximation can also be acceptable, we can approximate the relevance (true average) by using the sampled average
+$$\widetilde{Rel}(A,B) = \frac{1}{|S_A|+|S_B|} \left(\sum_{i\in S_A} \max_{t\in Sh_k^B} Sim(i, t) + \sum_{j\in S_B} \max_{t\in Sh_k^A} Sim(t, j)\right),$$
+where $S_A$ is the set of sampled shingles (with size $\leq K$) in document $A$, similarly $S_B$ for $B$. 
+That is, we can choose $k$ out of all the shingles at random, and compute the average of the $k$ sampled shingles as an approximation of the relevance.
 Thanks to the recent advance in statistical learning theory (especially the results of Rademacher average), there are tight error bounds for this sampling method.
 
 The approximation error of each our algorithm can be upper bounded by using Rademacher average \cite{BM02,Mohri09,BBM05}. We can treat the relevance approximation as a learning problem over large scale data set. In the analysis, we want to upper bound the approximation error for the worst case, i.e., to bound the maximum error $\overline{E}$ among the pairs of our observation:
@@ -139,16 +139,16 @@ By the above two theorems, we can bound our approximation error even for the wor
 \label{sec:acs}
 This section proposes our approximation algorithm and its analysis.
 {\color{black}
-The approximation algorithm takes as input a collection of word embedding vectors $V$, each of which is associated with one word, and a collection of $p$ candidate document pairs $P$, and two parameters $(\epsilon, \delta)$ whose values are between 0 and 1. The candidate pairs $P$ can be given by a dissimilarity detection algorithm, e.g., LSH based method \cite{LRU14}, Feature Scoring \cite{CL99}, Diamond Sampling \cite{BKP15}. The algorithm outputs a set $C = \{\tilde{S}(u,v): (u,v)\in P\}$, where $\tilde{S}(u,v)$ is the $(\epsilon, \delta)$- approximation of relevance between $u$ and $v$, i.e., with probability at least $1-\delta$, the worst approximation error in $C$ is at most $\epsilon$. Each vector in $V$ contains some features. Suppose we have $mn$ of word embedding pairs. We take these $mn$ vector pairs as the total space $D = \{(1,1),(1,2),\cdots,(m,n)\}$. For each pair $s=(i,j)\in D$, let $f_{u,v}(s) = u_i\cdot v_j$, where $u_i$ is the embedding vector of the $i$-th word of the document $u$. Let $F = \{f_{u,v}: (u,v)\in P\}$. Thus $|F| = p$. It is clear that the true average of each $f_{u,v}$ equals to the document relevance between $u$ and $v$. Given the sampled features of size $k$, the upper bound of $R_S(F)$ is 
+The approximation algorithm takes as input a collection of word embedding vectors $V$, each of which is associated with one non-stop word, and a collection of $p$ candidate document pairs $P$, maximum shingle size $K$, and two parameters $(\epsilon, \delta)$ whose values are between 0 and 1. The candidate pairs $P$ can be given by a dissimilarity detection algorithm, e.g., LSH based method \cite{LRU14}, Feature Scoring \cite{CL99}, Diamond Sampling \cite{BKP15}. The algorithm outputs a set $C = \{\tilde{S}(u,v): (u,v)\in P\}$, where $\tilde{S}(u,v)$ is the $(\epsilon, \delta)$- approximation of relevance between $u$ and $v$, i.e., with probability at least $1-\delta$, the worst approximation error in $C$ is at most $\epsilon$. Suppose we have $M$ shingles with sizes up to $K$ from documents $A$ and $B$. We take these $M$ shingles as the total space $D$ to be sampled. For each $k$-shingle $s\in D$, let $f_{u,v}(s) = \max_{t\in Sh_k^B}Sim(s, t)$ if $s$ is from document $A$ (or $f_{u,v}(s) = \max_{t\in Sh_k^A}Sim(t, s)$ if $s$ is from $B$). Let $F = \{f_{u,v}: (u,v)\in P\}$. Thus $|F| = p$. It is clear that the true average of each $f_{u,v}$ equals to the document relevance between $u$ and $v$. Given the sampled features of size $k$, the upper bound of $R_S(F)$ is 
 $$R_S(F) \leq \frac{\ell}{k}\sqrt{8\log p},$$
 where $\ell = \sqrt{\max_{f\in F} \sum_{i=1}^k f(s_i)^2}$. Since $F$ is finite, we can replace supreme by maximum. 
 }
 
 \subsection{The Algorithm}
-The approximation algorithm works in an iterative mode. For each iteration, we sample some new vector pairs $s_i$'s among $D$ and aggregate the feature products given by $f_{u,v}(s_i)$ for each $f_{u,v}$ in $F$. Then we compute the error upper bound:
+The approximation algorithm works in an iterative mode. For each iteration, we sample some new shingles $s_i$'s among $D$ and aggregate the similarities given by $f_{u,v}(s_i)$ for each $f_{u,v}$ in $F$. Then we compute the error upper bound:
 $$\Delta = \min\left\{\sqrt{\frac{2\log 2p + 2\log(1/\delta)}{k}}, \frac{\ell\sqrt{8\log p}}{k} +\left(1+\sqrt{\frac{2}{k}\log \frac{1}{\delta}} + \sqrt{\frac{2}{k}\log \frac{1}{\delta} + \frac{4\ell\sqrt{2\log p}}{k}}\right)\sqrt{\frac{2\log \frac{8}{\delta}}{k}}\right\},$$
-where $\ell = \sqrt{\max_{f\in F} \sum_{i=1}^k f(s_i)^2}$, and $k$ is the number of aggregated samples. 
-If $\Delta \leq \epsilon$, then we stop and return the average $\frac{1}{k}\sum_{s_i\in S}f_{u,v}(s_i)$ for each pair $u, v$. Otherwise, we continue to the next round, where we will sample more features. If $\Delta \leq \epsilon$ can never be satisfied, we will sample at most $m^2$ vector pairs, where $m$ is the maximum number of words in any document in the dataset. Algorithm \ref{alg:csa} gives the pseudocode of our solution. We use progressive approximation, i.e., for each round, the next sample size $k'$ is larger than the previous size $k$. The algorithm stops once the upper bound $\epsilon$ can be achieved. 
+where $\ell = \sqrt{\max_{f\in F} \sum_{i=1}^k f(s_i)^2}$, and $k$ is the number of samples. 
+If $\Delta \leq \epsilon$, then we stop and return the average $\frac{1}{k}\sum_{s_i\in S}f_{u,v}(s_i)$ for each pair $u, v$. Otherwise, we continue to the next round, where we will sample more shingles. If $\Delta \leq \epsilon$ can never be satisfied, we will sample at most $M_K$ vector pairs, where $M_K$ is the maximum number of shingles with sizes $\leq K$ in any document in the dataset. Algorithm \ref{alg:csa} gives the pseudocode of our solution. We use progressive approximation, i.e., for each round, the next sample size $k'$ is larger than the previous size $k$. The algorithm stops once the upper bound $\epsilon$ can be achieved. 
 
 It is clear to verify the correctness of our algorithm by Theorem \ref{thm:finite}, Theorem \ref{thm:main} and Theorem \ref{thm2}.
 
@@ -158,17 +158,21 @@ It is clear to verify the correctness of our algorithm by Theorem \ref{thm:finit
 \renewcommand{\algorithmicrequire}{\textbf{Input:}}
 \renewcommand{\algorithmicensure}{\textbf{Output:}}
 \begin{algorithmic}
-\Require{collection of documents $D$; word embedding vectors $V$; candidate document pairs $P$ ($|P| = p$); maximum number of words in any document $m$; $\epsilon \in (0,1)$; $\delta \in (0,1)$.}
+\Require{collection of documents $D$; word embedding vectors $V$; candidate document pairs $P$ ($|P| = p$); maximum number of words in any document $m$; maximum shingle size $K$; maximum number of shingles no longer than $K$: $M_K$; allowed errors: $\epsilon \in (0,1)$ and $\delta \in (0,1)$.}
 \Ensure{$\widetilde{S}(u,v)$ for each $(u, v) \in P$.}
 \State $k \gets 0$; $S \gets \emptyset$;
 \State For each $i,j \in D$, let $S(i,j) = 0$;
-\While {$k < m^2$}
+\While {$k < M_K$}
 	\State $k' \gets \textsf{next-sample-size}(k)$;
 	\For {$i$ from $k$ to $k'-1$}
 	  \For {each $(u, v) \in P$}
-		  \State Uniformly sample a vector $u_s$ from the embedding vectors of $u$;
-			\State Uniformly sample a vector $v_s$ from the embedding vectors of $v$;
-			\State $S(u,v) \gets S(u,v)+u_s\cdot v_s$;
+		  \State Uniformly sample a shingle $s$ from $u$ or $v$;
+			\State Let $\ell$ be the length of $s$;
+			\If {$s$ is from $u$}
+  			\State $S(u,v) \gets S(u,v) + \max_{t\in Sh_\ell^B}Sim(s, t)$;
+			\Else
+			  \State $S(u,v) \gets S(u,v) + \max_{t\in Sh_\ell^A}Sim(t, s)$;
+			\EndIf
 		\EndFor
 	\EndFor
 	\State $k \gets k'$;

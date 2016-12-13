@@ -157,6 +157,12 @@ Glen Jeh and Jennifer Widom.
 \newblock In {\em Proceedings of the eighth ACM SIGKDD international conference
   on Knowledge discovery and data mining}, pages 538--543. ACM, 2002.
 
+\bibitem{KSK15}
+Matt~J Kusner, Yu~Sun, Nicholas~I Kolkin, and Kilian~Q Weinberger.
+\newblock From word embeddings to document distances.
+\newblock In {\em Proceedings of the 32nd International Conference on Machine
+  Learning (ICML 2015)}, pages 957--966, 2015.
+
 \bibitem{KMK14}
 Mitsuru Kusumoto, Takanori Maehara, and Ken-ichi Kawarabayashi.
 \newblock Scalable similarity search for simrank.
